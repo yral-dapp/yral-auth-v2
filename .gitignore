@@ -14,3 +14,7 @@ Cargo.lock
 *.pdb
 
 node_modules
+
+.env
+*.pem
+redb-kv.db

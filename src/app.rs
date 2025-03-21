@@ -2,7 +2,15 @@ use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, HashedStylesheet, MetaTags, Title};
 use leptos_router::{
     components::{Route, Router, Routes},
-    StaticSegment,
+    path, StaticSegment,
+};
+
+use crate::{
+    context::provide_client_id_validator,
+    page::{
+        auth::AuthPage,
+        oauth_login::{oauth_callback::OAuthCallbackPage, oauth_redirector::OAuthRedirectorPage},
+    },
 };
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -30,6 +38,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
 pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
+    provide_client_id_validator();
 
     view! {
         // sets the document title
@@ -40,6 +49,9 @@ pub fn App() -> impl IntoView {
             <main>
                 <Routes fallback=|| "Page not found.".into_view()>
                     <Route path=StaticSegment("") view=HomePage/>
+                    <Route path=path!("/auth") view=AuthPage/>
+                    <Route path=path!("/oauth_redirector") view=OAuthRedirectorPage/>
+                    <Route path=path!("/oauth_callback") view=OAuthCallbackPage/>
                 </Routes>
             </main>
         </Router>

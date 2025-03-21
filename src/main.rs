@@ -1,12 +1,49 @@
+use std::sync::Arc;
 
-#[cfg(feature = "ssr")]
+use axum::{
+    body::Body as AxumBody,
+    extract::{Path, State},
+    http::Request,
+    response::{IntoResponse, Response},
+    routing::get,
+    Router,
+};
+use leptos::{config::get_configuration, logging::log, prelude::provide_context};
+use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRoutes};
+use yral_auth_v2::{
+    app::{shell, App},
+    context::server::{ServerCtx, ServerState},
+};
+
+async fn server_fn_handler(
+    State(app_state): State<ServerState>,
+    _path: Path<String>,
+    request: Request<AxumBody>,
+) -> impl IntoResponse {
+    handle_server_fns_with_context(
+        move || {
+            provide_context(app_state.ctx.clone());
+        },
+        request,
+    )
+    .await
+}
+
+async fn leptos_routes_handler(state: State<ServerState>, req: Request<AxumBody>) -> Response {
+    let State(app_state) = state.clone();
+    let handler = leptos_axum::render_route_with_context(
+        app_state.routes.clone(),
+        move || {
+            provide_context(app_state.ctx.clone());
+        },
+        move || shell(app_state.leptos_options.clone()),
+    );
+    handler(state, req).await.into_response()
+}
+
 #[tokio::main]
 async fn main() {
-    use axum::Router;
-    use leptos::logging::log;
-    use leptos::prelude::*;
-    use leptos_axum::{generate_route_list, LeptosRoutes};
-    use yral_auth_v2::app::*;
+    simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
 
     let conf = get_configuration(None).unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -14,13 +51,22 @@ async fn main() {
     // Generate the list of routes in your Leptos App
     let routes = generate_route_list(App);
 
+    dotenvy::dotenv().ok();
+
+    let app_state = ServerState {
+        leptos_options,
+        routes: routes.clone(),
+        ctx: Arc::new(ServerCtx::new().await),
+    };
+
     let app = Router::new()
-        .leptos_routes(&leptos_options, routes, {
-            let leptos_options = leptos_options.clone();
-            move || shell(leptos_options.clone())
-        })
-        .fallback(leptos_axum::file_and_error_handler(shell))
-        .with_state(leptos_options);
+        .route(
+            "/api/*fn_name",
+            get(server_fn_handler).post(server_fn_handler),
+        )
+        .leptos_routes_with_handler(routes, get(leptos_routes_handler))
+        .fallback(leptos_axum::file_and_error_handler::<ServerState, _>(shell))
+        .with_state(app_state);
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
@@ -29,11 +75,4 @@ async fn main() {
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
-}
-
-#[cfg(not(feature = "ssr"))]
-pub fn main() {
-    // no client-side main function
-    // unless we want this to work with e.g., Trunk for pure client-side testing
-    // see lib.rs for hydration function instead
 }

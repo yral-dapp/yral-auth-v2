@@ -9,18 +9,49 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 leptos = { version = "0.7.0" }
 leptos_router = { version = "0.7.0" }
-axum = { version = "0.7", optional = true }
+axum = { version = "0.7", optional = true, features = ["macros"] }
+axum-extra = { version = "0.9.3", features = ["cookie", "cookie-private"], optional = true }
+console_log = { version = "0.1", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true}
 leptos_axum = { version = "0.7.0", optional = true }
 leptos_meta = { version = "0.7.0" }
 tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 wasm-bindgen = { version = "=0.2.100", optional = true }
+thiserror = { version = "2.0.12" }
+leptos_icons = { version = "0.5.0"}
+icondata = { version = "0.5.0", default-features = false }
+icondata_core = { version = "0.1.0"}
+enum_dispatch = "0.3.13"
+serde = { version = "1.0.219", features = ["derive"] }
+url = { version = "2.5.4", features = ["serde"] }
+base64 = "0.22.1"
+postcard = { version = "1.1.1", features = ["use-std"] }
+openidconnect = "4.0.0"
+hex = { version = "0.4.3", optional = true}
+log = "0.4.27"
+simple_logger = { version = "4.0", optional = true }
+dotenvy = { version = "0.15.7", optional = true }
+jsonwebtoken = { version = "9.3.1", optional = true }
+candid = { version = "0.10.13", optional = true }
+serde_json = { version = "1.0.140", optional = true }
+redis = { version = "0.25.2", features = [
+    "tokio-rustls-comp",
+    "aio",
+    "ahash",
+    "connection-manager",
+    "keep-alive",
+], default-features = false, optional = true }
+bb8 = { version = "0.8.3", optional = true }
+bb8-redis = { version = "0.15.0", optional = true }
+redb = { version = "2.0.0", optional = true }
 
 [features]
+redis-kv = []
 hydrate = [
     "leptos/hydrate",
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",
+    "dep:console_log",
 ]
 ssr = [
     "dep:axum",
@@ -29,7 +60,20 @@ ssr = [
     "leptos/ssr",
     "leptos_meta/ssr",
     "leptos_router/ssr",
+    "dep:axum-extra",
+    "dep:hex",
+    "dep:simple_logger",
+    "dep:dotenvy",
+    "dep:candid",
+    "dep:jsonwebtoken",
+    "dep:serde_json",
+    "dep:bb8",
+    "dep:bb8-redis",
+    "dep:redb",
+    "dep:redis",
 ]
+release-lib = ["hydrate"]
+release-bin = ["ssr", "redis-kv"]
 
 # Defines a size-optimized profile for the WASM bundle in release mode
 [profile.wasm-release]
