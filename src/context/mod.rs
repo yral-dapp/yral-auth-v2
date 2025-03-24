@@ -1,6 +1,6 @@
 use leptos::prelude::{expect_context, provide_context};
 
-use crate::oauth::client::ClientIdValidatorImpl;
+use crate::oauth::client_validation::ClientIdValidatorImpl;
 
 #[cfg(feature = "ssr")]
 pub mod server;

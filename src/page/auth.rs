@@ -11,10 +11,10 @@ use url::Url;
 
 use crate::{
     components::{google_symbol::GoogleSymbol, spinner::Spinner},
-    error::{AuthError, AuthErrorKind},
+    error::AuthErrorKind,
     oauth::{
-        client::{ClientIdValidator, ClientIdValidatorImpl},
-        AuthQuery, AuthResponseCode, CodeChallenge, CodeChallengeMethodS256,
+        client_validation::{ClientIdValidator, ClientIdValidatorImpl},
+        AuthCodeError, AuthQuery, AuthResponseCode, CodeChallenge, CodeChallengeMethodS256,
         SupportedOAuthProviders,
     },
 };
@@ -25,10 +25,14 @@ pub struct RedirectUriQuery {
 }
 
 #[derive(Debug, Clone, Params, PartialEq)]
+pub struct StateQuery {
+    state: Option<String>,
+}
+
+#[derive(Debug, Clone, Params, PartialEq)]
 pub struct AuthQueryMaybe {
     response_type: Option<AuthResponseCode>,
     client_id: Option<String>,
-    state: Option<String>,
     code_challenge: Option<CodeChallenge>,
     code_challenge_method: Option<CodeChallengeMethodS256>,
     nonce: Option<String>,
@@ -39,6 +43,7 @@ impl AuthQueryMaybe {
         self,
         validator: &impl ClientIdValidator,
         redirect_uri: String,
+        state: String,
     ) -> Result<AuthQuery, AuthErrorKind> {
         let client_id = self
             .client_id
@@ -55,9 +60,7 @@ impl AuthQueryMaybe {
                 .response_type
                 .ok_or_else(|| AuthErrorKind::missing_param("response_type"))?,
             client_id,
-            state: self
-                .state
-                .ok_or_else(|| AuthErrorKind::missing_param("state"))?,
+            state,
             redirect_uri,
             code_challenge: self
                 .code_challenge
@@ -73,13 +76,20 @@ impl AuthQueryMaybe {
 #[component]
 pub fn AuthPage() -> impl IntoView {
     let redirect_query = use_query::<RedirectUriQuery>();
+    let state_query = use_query::<StateQuery>();
     let auth_query_maybe = use_query::<AuthQueryMaybe>();
 
     let validator = expect_context::<ClientIdValidatorImpl>();
 
     let auth_query = Resource::new(
-        move || (redirect_query.get(), auth_query_maybe.get()),
-        move |(redirect_query, auth_query_maybe)| {
+        move || {
+            (
+                redirect_query.get(),
+                auth_query_maybe.get(),
+                state_query.get(),
+            )
+        },
+        move |(redirect_query, auth_query_maybe, state_query)| {
             let validator = validator.clone();
             async move {
                 let redirect_uri = match redirect_query {
@@ -87,15 +97,29 @@ pub fn AuthPage() -> impl IntoView {
                         redirect_uri: Some(uri),
                     }) => uri,
                     _ => {
-                        return Err(AuthError::new(
-                            AuthErrorKind::MissingParam("redirect_uri".to_string()),
+                        return Err(AuthCodeError::new(
+                            AuthErrorKind::missing_param("redirect_uri"),
+                            None,
                             "/error",
+                        ))
+                    }
+                };
+                let state = match state_query {
+                    Ok(StateQuery { state: Some(state) }) => state,
+                    _ => {
+                        return Err(AuthCodeError::new(
+                            AuthErrorKind::missing_param("state"),
+                            None,
+                            redirect_uri.clone(),
                         ))
                     }
                 };
 
                 let res = match auth_query_maybe {
-                    Ok(q) => q.validate(&validator, redirect_uri.clone()).await,
+                    Ok(q) => {
+                        q.validate(&validator, redirect_uri.clone(), state.clone())
+                            .await
+                    }
                     Err(ParamsError::MissingParam(param)) => {
                         Err(AuthErrorKind::missing_param(param))
                     }
@@ -104,7 +128,7 @@ pub fn AuthPage() -> impl IntoView {
                         None => Err(AuthErrorKind::Unexpected(e.to_string())),
                     },
                 };
-                res.map_err(|e| AuthError::new(e, redirect_uri.clone()))
+                res.map_err(|e| AuthCodeError::new(e, Some(state), redirect_uri.clone()))
             }
         },
     );
@@ -120,7 +144,7 @@ pub fn AuthPage() -> impl IntoView {
                         }),
                         Err(e) => {
                             Either::Right(view! {
-                                <Redirect path=e.as_redirect() />
+                                <Redirect path=e.to_redirect() />
                             })
                         }
                     }

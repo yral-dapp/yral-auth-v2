@@ -5,12 +5,13 @@ use axum::{
     extract::{Path, State},
     http::Request,
     response::{IntoResponse, Response},
-    routing::get,
-    Router,
+    routing::{get, post},
+    Extension, Router,
 };
 use leptos::{config::get_configuration, logging::log, prelude::provide_context};
 use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRoutes};
 use yral_auth_v2::{
+    api::server_impl::handle_oauth_token_grant,
     app::{shell, App},
     context::server::{ServerCtx, ServerState},
 };
@@ -60,6 +61,10 @@ async fn main() {
     };
 
     let app = Router::new()
+        .route(
+            "/oauth/token",
+            post(handle_oauth_token_grant).layer(Extension(app_state.ctx.clone())),
+        )
         .route(
             "/api/*fn_name",
             get(server_fn_handler).post(server_fn_handler),

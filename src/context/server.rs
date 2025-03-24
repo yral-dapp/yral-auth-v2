@@ -8,7 +8,11 @@ use openidconnect::{
     reqwest, ClientId, ClientSecret, IssuerUrl, RedirectUrl,
 };
 
-use crate::{consts::GOOGLE_ISSUER_URL, kv::KVStoreImpl, oauth::SupportedOAuthProviders};
+use crate::{
+    consts::GOOGLE_ISSUER_URL,
+    kv::KVStoreImpl,
+    oauth::{client_validation::ClientIdValidatorImpl, SupportedOAuthProviders},
+};
 
 type OAuthProvider = openidconnect::Client<
     openidconnect::EmptyAdditionalClaims,
@@ -56,6 +60,7 @@ pub struct ServerCtx {
     pub jwt_encoding_key: jsonwebtoken::EncodingKey,
     pub jwt_decoding_key: jsonwebtoken::DecodingKey,
     pub kv_store: KVStoreImpl,
+    pub validator: ClientIdValidatorImpl,
 }
 
 impl ServerCtx {
@@ -145,6 +150,7 @@ impl ServerCtx {
             jwt_encoding_key,
             jwt_decoding_key,
             kv_store,
+            validator: ClientIdValidatorImpl::Const(Default::default()),
         }
     }
 }

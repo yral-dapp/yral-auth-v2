@@ -1,4 +1,4 @@
-use std::time::Duration;
+use web_time::Duration;
 
 use axum::{
     http::{header, HeaderMap},
@@ -22,7 +22,7 @@ use crate::{
     context::server::expect_server_ctx,
     error::AuthErrorKind,
     kv::{KVError, KVStore, KVStoreImpl},
-    oauth::{jwt_gen::generate_code_grant_jwt, AuthQuery, SupportedOAuthProviders},
+    oauth::{jwt::generate::generate_code_grant_jwt, AuthQuery, SupportedOAuthProviders},
 };
 
 const PKCE_VERIFIER_COOKIE: &str = "oauth-pkce-verifier";
@@ -230,7 +230,8 @@ pub async fn perform_oauth_login_impl(
         Err(e) => redirect_uri
             .query_pairs_mut()
             .clear()
-            .append_pair("error", &e.to_string()),
+            .append_pair("error", &e.to_string())
+            .append_pair("state", &req_state),
     };
 
     Ok(redirect_uri.to_string())
