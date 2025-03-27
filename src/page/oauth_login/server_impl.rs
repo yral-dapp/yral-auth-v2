@@ -1,3 +1,4 @@
+use ic_agent::Identity;
 use web_time::Duration;
 
 use axum::{
@@ -22,7 +23,11 @@ use crate::{
     context::server::expect_server_ctx,
     error::AuthErrorKind,
     kv::{KVError, KVStore, KVStoreImpl},
-    oauth::{jwt::generate::generate_code_grant_jwt, AuthQuery, SupportedOAuthProviders},
+    oauth::{
+        jwt::generate::generate_code_grant_jwt, login_hint_message, AuthLoginHint, AuthQuery,
+        SupportedOAuthProviders,
+    },
+    utils::identity::generate_random_identity_and_save,
 };
 
 const PKCE_VERIFIER_COOKIE: &str = "oauth-pkce-verifier";
@@ -127,6 +132,26 @@ async fn try_extract_principal_from_oauth_sub(
     Ok(Some(principal_str))
 }
 
+async fn principal_from_login_hint_or_generate(
+    kv: &KVStoreImpl,
+    login_hint: Option<AuthLoginHint>,
+) -> Result<Principal, AuthErrorKind> {
+    let Some(login_hint) = login_hint else {
+        let identity = generate_random_identity_and_save(kv)
+            .await
+            .map_err(|_| AuthErrorKind::unexpected("failed to generate id"))?;
+        return Ok(identity.sender().unwrap());
+    };
+
+    let msg = login_hint_message();
+    login_hint
+        .signature
+        .verify_identity(login_hint.user_principal, msg)
+        .map_err(|_| AuthErrorKind::InvalidLoginHint)?;
+
+    Ok(login_hint.user_principal)
+}
+
 async fn generate_oauth_login_code(
     code: String,
     pkce_verifier: PkceCodeVerifier,
@@ -166,7 +191,7 @@ async fn generate_oauth_login_code(
         Principal::from_text(principal_str)
             .map_err(|_| AuthErrorKind::unexpected("Invalid principal from KV"))?
     } else {
-        Principal::anonymous()
+        principal_from_login_hint_or_generate(&ctx.kv_store, query.login_hint.clone()).await?
     };
 
     let headers: HeaderMap = extract().await.unwrap();

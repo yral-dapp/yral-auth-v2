@@ -23,6 +23,8 @@ pub enum AuthErrorKind {
     InvalidCodeChallenge(String),
     #[error("Invalid provider: {0}")]
     InvalidProvider(String),
+    #[error("Invalid login hint")]
+    InvalidLoginHint,
 }
 
 impl AuthErrorKind {

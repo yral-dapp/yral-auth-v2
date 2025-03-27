@@ -5,9 +5,11 @@ use std::{
     str::FromStr,
 };
 
-use base64::{prelude::BASE64_URL_SAFE, Engine};
+use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
+use candid::Principal;
 use serde::{Deserialize, Serialize};
 use url::Url;
+use yral_identity::Signature;
 
 use crate::{consts::ACCESS_TOKEN_MAX_AGE, error::AuthErrorKind};
 
@@ -73,7 +75,7 @@ impl FromStr for CodeChallenge {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut res = [0u8; 32];
-        let len = BASE64_URL_SAFE
+        let len = BASE64_URL_SAFE_NO_PAD
             .decode_slice(s, &mut res)
             .map_err(|_| AuthErrorKind::InvalidCodeChallenge(s.to_string()))?;
         if len != 32 {
@@ -82,6 +84,28 @@ impl FromStr for CodeChallenge {
 
         Ok(Self(res))
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct AuthLoginHint {
+    pub user_principal: Principal,
+    pub signature: Signature,
+}
+
+impl FromStr for AuthLoginHint {
+    type Err = AuthErrorKind;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let res: Self = serde_json::from_str(s).map_err(|_| AuthErrorKind::InvalidLoginHint)?;
+
+        Ok(res)
+    }
+}
+
+pub fn login_hint_message() -> yral_identity::msg_builder::Message {
+    use yral_identity::msg_builder::Message;
+
+    Message::default().method_name("yral_auth_v2_login_hint".into())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,6 +118,7 @@ pub struct AuthQuery {
     pub code_challenge: CodeChallenge,
     pub code_challenge_method: CodeChallengeMethodS256,
     pub nonce: Option<String>,
+    pub login_hint: Option<AuthLoginHint>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -145,6 +170,7 @@ impl From<AuthErrorKind> for AuthCodeErrorKind {
             AuthErrorKind::InvalidUri(_) => Self::InvalidRequest,
             AuthErrorKind::InvalidCodeChallenge(_) => Self::InvalidRequest,
             AuthErrorKind::InvalidCodeChallengeMethod(_) => Self::InvalidRequest,
+            AuthErrorKind::InvalidLoginHint => Self::InvalidRequest,
             AuthErrorKind::InvalidProvider(_) => Self::ServerError,
         }
     }

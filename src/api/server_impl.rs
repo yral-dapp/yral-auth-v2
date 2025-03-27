@@ -26,7 +26,7 @@ use crate::{
         },
         AuthGrantQuery, TokenGrantError, TokenGrantErrorKind, TokenGrantRes, TokenGrantResult,
     },
-    utils::time::current_epoch,
+    utils::{identity::generate_random_identity_and_save, time::current_epoch},
 };
 
 async fn verify_client_secret(
@@ -303,13 +303,7 @@ async fn handle_client_credentials_grant(
 ) -> Result<TokenGrantRes, TokenGrantError> {
     verify_client_secret(ctx, &client_id, client_secret, None).await?;
 
-    let key = k256::SecretKey::random(&mut rand::thread_rng());
-    let base_jwk = key.to_jwk_string();
-    let identity = Secp256k1Identity::from_private_key(key);
-    let principal = identity.sender().unwrap();
-
-    ctx.kv_store
-        .write(principal.to_text(), base_jwk.to_string())
+    let identity = generate_random_identity_and_save(&ctx.kv_store)
         .await
         .map_err(|e| TokenGrantError {
             error: TokenGrantErrorKind::ServerError,
