@@ -48,9 +48,9 @@ pub struct RefreshTokenClaims {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientSecretClaims {
-    aud: String,
-    exp: usize,
-    iat: usize,
-    iss: String,
+    pub aud: String,
+    pub exp: usize,
+    pub iat: usize,
+    pub iss: String,
     pub sub: String,
 }
