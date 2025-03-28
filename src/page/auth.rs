@@ -10,7 +10,7 @@ use leptos_router::{
 use url::Url;
 
 use crate::{
-    components::{google_symbol::GoogleSymbol, spinner::Spinner},
+    components::{google_symbol::GoogleSymbol, spinner::Spinner, yral_symbol::YralSymbol},
     error::AuthErrorKind,
     oauth::{
         client_validation::{ClientIdValidator, ClientIdValidatorImpl},
@@ -136,7 +136,7 @@ pub fn AuthPage() -> impl IntoView {
     );
 
     view! {
-        <div class="w-dvw h-dvh flex items-center justify-center bg-black">
+        <div class="w-dvw h-dvh flex justify-center items-center bg-neutral-900">
             <Suspense fallback=Spinner>
                 {move || Suspend::new(async move {
                     let auth = auth_query.await;
@@ -161,12 +161,18 @@ pub fn LoginContent(auth: AuthQuery) -> impl IntoView {
     let auth_store = StoredValue::new(auth);
 
     view! {
-        <LoginButton auth=auth_store attr:class="flex flex-row justify-center items-center justify-between gap-2 rounded-full bg-neutral-600 pr-4" provider=SupportedOAuthProviders::Google>
-            <div class="grid grid-cols-1 place-items-center bg-white p-2 rounded-full">
-                <Icon attr:class="text-xl rounded-full" icon=GoogleSymbol />
+        <div class="flex flex-col items-center text-white cursor-auto">
+            <Icon attr:class="rounded-full mb-6 text-8xl" icon=YralSymbol />
+            <span class="text-2xl mb-4">Login to Yral</span>
+            <div class="flex flex-col w-full gap-4 items-center">
+                <LoginButton auth=auth_store attr:class="flex flex-row justify-center cursor-pointer items-center justify-between gap-1 rounded-full bg-white pr-4 hover:bg-neutral-200" provider=SupportedOAuthProviders::Google>
+                    <div class="grid grid-cols-1 place-items-center pl-2 py-2 rounded-full">
+                        <Icon attr:class="text-xl rounded-full" icon=GoogleSymbol />
+                    </div>
+                    <span class="text-neutral-900">{"Continue with Google"}</span>
+                </LoginButton>
             </div>
-            <span class="text-white">{"Google Sign-In"}</span>
-        </LoginButton>
+        </div>
     }
 }
 

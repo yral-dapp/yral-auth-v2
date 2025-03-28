@@ -42,7 +42,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="Yral Authentication"/>
 
         // content for this welcome page
         <Router>
