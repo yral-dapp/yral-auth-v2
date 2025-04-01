@@ -37,7 +37,7 @@ async fn verify_client_secret(
 ) -> Result<(), TokenGrantError> {
     ctx.validator
         .full_validation(
-            &ctx.jwt_decoding_key,
+            &ctx.jwk_pairs.client_tokens.decoding_key,
             client_id,
             redirect_uri,
             client_secret.as_deref(),
@@ -151,7 +151,7 @@ fn generate_access_token_with_identity(
     let user_principal = identity.sender().unwrap();
 
     let access_token = generate_access_token_jwt(
-        &ctx.jwt_encoding_key,
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
         user_principal,
         delegated_identity,
         host,
@@ -160,7 +160,7 @@ fn generate_access_token_with_identity(
         is_anonymous,
     );
     let refresh_token = generate_refresh_token_jwt(
-        &ctx.jwt_encoding_key,
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
         user_principal,
         host,
         client_id,
@@ -218,13 +218,15 @@ async fn handle_authorization_code_grant(
     validation.set_audience(&[&client_id]);
     validation.set_issuer(&[host]);
 
-    let auth_code =
-        jsonwebtoken::decode::<AuthCodeClaims>(&code, &ctx.jwt_decoding_key, &validation).map_err(
-            |e| TokenGrantError {
-                error: TokenGrantErrorKind::InvalidGrant,
-                error_description: e.to_string(),
-            },
-        )?;
+    let auth_code = jsonwebtoken::decode::<AuthCodeClaims>(
+        &code,
+        &ctx.jwk_pairs.auth_tokens.decoding_key,
+        &validation,
+    )
+    .map_err(|e| TokenGrantError {
+        error: TokenGrantErrorKind::InvalidGrant,
+        error_description: e.to_string(),
+    })?;
 
     let code_claims = auth_code.claims;
     if code_claims.ext_redirect_uri != redirect_uri {
@@ -272,7 +274,7 @@ async fn handle_refresh_token_grant(
 
     let refresh_token = jsonwebtoken::decode::<RefreshTokenClaims>(
         &refresh_token,
-        &ctx.jwt_decoding_key,
+        &ctx.jwk_pairs.auth_tokens.decoding_key,
         &validation,
     )
     .map_err(|e| TokenGrantError {

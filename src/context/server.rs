@@ -53,12 +53,49 @@ pub struct ServerState {
     pub ctx: Arc<ServerCtx>,
 }
 
+pub struct JwkPair {
+    pub encoding_key: jsonwebtoken::EncodingKey,
+    pub decoding_key: jsonwebtoken::DecodingKey,
+}
+
+impl JwkPair {
+    pub fn load_from_env(encoding_env: &str, decoding_env: &str) -> Self {
+        let jwt_pem =
+            env::var(encoding_env).unwrap_or_else(|_| panic!("`{encoding_env}` is required!"));
+        let jwt_pub_pem =
+            env::var(decoding_env).unwrap_or_else(|_| panic!("`{decoding_env}` is required!"));
+
+        let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(jwt_pem.as_bytes())
+            .unwrap_or_else(|_| panic!("invalid `{encoding_env}`"));
+        let decoding_key = jsonwebtoken::DecodingKey::from_ed_pem(jwt_pub_pem.as_bytes())
+            .unwrap_or_else(|_| panic!("invalid `{decoding_env}`"));
+
+        Self {
+            encoding_key,
+            decoding_key,
+        }
+    }
+}
+
+pub struct JwkPairs {
+    pub auth_tokens: JwkPair,
+    pub client_tokens: JwkPair,
+}
+
+impl Default for JwkPairs {
+    fn default() -> Self {
+        Self {
+            auth_tokens: JwkPair::load_from_env("JWT_ED_PEM", "JWT_PUB_ED_PEM"),
+            client_tokens: JwkPair::load_from_env("CLIENT_JWT_ED_PEM", "CLIENT_JWT_PUB_ED_PEM"),
+        }
+    }
+}
+
 pub struct ServerCtx {
     pub oauth_http_client: reqwest::Client,
     pub oauth_providers: HashMap<SupportedOAuthProviders, OAuthProvider>,
     pub cookie_key: axum_extra::extract::cookie::Key,
-    pub jwt_encoding_key: jsonwebtoken::EncodingKey,
-    pub jwt_decoding_key: jsonwebtoken::DecodingKey,
+    pub jwk_pairs: JwkPairs,
     pub kv_store: KVStoreImpl,
     pub validator: ClientIdValidatorImpl,
 }
@@ -101,16 +138,6 @@ impl ServerCtx {
         axum_extra::extract::cookie::Key::from(&cookie_key_raw)
     }
 
-    pub fn init_jwt_keys() -> (jsonwebtoken::EncodingKey, jsonwebtoken::DecodingKey) {
-        let jwt_pem = env::var("JWT_ED_PEM").expect("`JWT_ED_PEM` is required!");
-        let jwt_pub_pem = env::var("JWT_PUB_ED_PEM").expect("`JWT_PUB_ED_PEM` is required!");
-        let jwt_encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(jwt_pem.as_bytes())
-            .expect("invalid `JWT_ED_PEM`");
-        let jwt_decoding_key = jsonwebtoken::DecodingKey::from_ed_pem(jwt_pub_pem.as_bytes())
-            .expect("invalid `JWT_PUB_ED_PEM`");
-        (jwt_encoding_key, jwt_decoding_key)
-    }
-
     pub async fn init_kv_store() -> KVStoreImpl {
         #[cfg(not(feature = "redis-kv"))]
         {
@@ -139,16 +166,13 @@ impl ServerCtx {
 
         let cookie_key = Self::init_cookie_key();
 
-        let (jwt_encoding_key, jwt_decoding_key) = Self::init_jwt_keys();
-
         let kv_store = Self::init_kv_store().await;
 
         Self {
             oauth_http_client,
             oauth_providers,
             cookie_key,
-            jwt_encoding_key,
-            jwt_decoding_key,
+            jwk_pairs: JwkPairs::default(),
             kv_store,
             validator: ClientIdValidatorImpl::Const(Default::default()),
         }
