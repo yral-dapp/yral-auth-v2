@@ -198,7 +198,7 @@ async fn generate_oauth_login_code(
     let host = headers.get("host").unwrap();
 
     let code_grant = generate_code_grant_jwt(
-        &ctx.jwt_encoding_key,
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
         principal,
         host.to_str().unwrap(),
         query,

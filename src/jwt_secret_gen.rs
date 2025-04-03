@@ -10,9 +10,9 @@ fn main() {
     dotenvy::dotenv().unwrap();
 
     let client_id = env::var("CLIENT_ID").expect("Specify `CLIENT_ID` to generate JWT");
-    let jwt_pem = env::var("JWT_ED_PEM").expect("`JWT_ED_PEM` is required!");
-    let jwt_enc =
-        jsonwebtoken::EncodingKey::from_ed_pem(jwt_pem.as_bytes()).expect("invalid `JWT_ED_PEM`");
+    let jwt_pem = env::var("CLIENT_JWT_ED_PEM").expect("`CLIENT_JWT_ED_PEM` is required!");
+    let jwt_enc = jsonwebtoken::EncodingKey::from_ed_pem(jwt_pem.as_bytes())
+        .expect("invalid `CLIENT_JWT_ED_PEM`");
 
     let jwt = jsonwebtoken::encode(
         &Header::new(jsonwebtoken::Algorithm::EdDSA),
