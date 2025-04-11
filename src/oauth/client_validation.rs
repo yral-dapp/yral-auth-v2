@@ -102,7 +102,11 @@ impl Default for ConstClientIdValidator {
                 // Yral Next.js
                 OAuthClient {
                     client_id: "6a0101eb-8496-4afb-ba48-425187c3a30d".to_string(),
-                    redirect_urls: vec!["https://pumpdump.wtf/auth/oauth_cb".parse().unwrap()],
+                    redirect_urls: vec![
+                        "https://pumpdump.wtf/auth/oauth_cb".parse().unwrap(),
+                        "https://pd.dev/auth/oauth_cb".parse().unwrap(),
+                        "http://localhost:5190/auth/oauth_cb".parse().unwrap(),
+                    ],
                     client_type: OAuthClientType::Web,
                 },
             ],
