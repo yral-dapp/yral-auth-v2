@@ -103,9 +103,9 @@ impl Default for ConstClientIdValidator {
                 OAuthClient {
                     client_id: "6a0101eb-8496-4afb-ba48-425187c3a30d".to_string(),
                     redirect_urls: vec![
-                        "https://pumpdump.wtf/auth/oauth_cb".parse().unwrap(),
-                        "https://pd.dev/auth/oauth_cb".parse().unwrap(),
-                        "http://localhost:5190/auth/oauth_cb".parse().unwrap(),
+                        "https://pumpdump.wtf/api/oauth/callback".parse().unwrap(),
+                        "https://pd.dev/api/oauth/callback".parse().unwrap(),
+                        "http://localhost:5190/api/oauth/callback".parse().unwrap(),
                     ],
                     client_type: OAuthClientType::Web,
                 },
